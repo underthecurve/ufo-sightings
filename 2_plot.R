@@ -2,7 +2,7 @@ library('tidyverse')
 library('lubridate')
 library('scales')
 
-## run clean.R before this to get the ufo_clean.csv data
+## run processing.R before this to get the ufo_clean.csv data
 
 ufo <- read_csv('ufo_clean.csv')
 
