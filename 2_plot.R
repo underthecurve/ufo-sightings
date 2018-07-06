@@ -1,6 +1,7 @@
 library('tidyverse')
 library('lubridate')
 library('scales')
+library('ggridges')
 
 ## run processing.R before this to get the ufo_clean.csv data
 
@@ -25,8 +26,6 @@ ggplot(ufo.dates, aes(x = as.numeric(event.day), y = n, fill = factor(july4))) +
 
 # let's try a different kind of data viz
 ## inspiration: https://www.washingtonpost.com/news/wonk/wp/2014/12/31/youre-gonna-get-soooo-wasted-tonight-and-google-knows-it/
-
-ufo.dates$month.day <- paste(ufo.dates$event.month, as.numeric(ufo.dates$event.day))
 
 # pad with a 'year' so R will recognize as a date: https://mgimond.github.io/ES218/Week02c.html
 ufo.dates$date <- paste("2016", # note it's not really 2016 this is just a placeholder
@@ -77,8 +76,62 @@ axis.text = element_text(size = 12)
   
 ggsave('plot.png', width = 8, height = 4.5)
 
+## ridge plots by year
 
+ufo.dates.year <- ufo %>% filter(is.na(event.date) == F & 
+                              event.year >= 1995 & event.year != 2018 & hoax != 1) %>%
+  group_by(event.day, event.month, event.year) %>%
+  summarise(n = n()) %>% ungroup() %>% group_by(event.year) %>% mutate(year.total = sum(n)) %>%
+  mutate(prop = n/year.total)
 
+# pad with a 'year' so R will recognize as a date: https://mgimond.github.io/ES218/Week02c.html
+ufo.dates.year$date <- paste('2016', # note it's not really 2016 this is just a placeholder
+                                 ufo.dates.year$event.month, 
+                                 ufo.dates.year$event.day, sep="-")
 
+# code January as the subsequent year so it will appear later in the plot
+ufo.dates.year$date <- ifelse(ufo.dates.year$event.month == 'Jan', 
+                              paste("2017", ufo.dates.year$event.month, 
+                                    ufo.dates.year$event.day, sep="-"), ufo.dates.year$date)
 
+ufo.dates.year$date <- ymd(ufo.dates.year$date)
 
+ufo.ridge <- ggplot(ufo.dates.year, aes(x = date, 
+                           y = event.year, 
+                           height = prop * 100, 
+                           group = event.year)) + 
+  geom_ridgeline(scale = 1, alpha = .6, fill = '#25D366',  
+                 color = '#128C7E') +
+  scale_y_continuous(breaks = seq(1995, 2017, 1)) +
+  scale_x_date(expand = c(0, 0), date_breaks = "month",
+               date_minor_breaks = "day", 
+               labels = c( # there's probably a better way to do this but oh well
+                 'Feb',
+                 'Mar',
+                 'Apr',
+                 'May',
+                 'Jun',
+                 'Jul',
+                 'Aug',
+                 'Sept',
+                 'Oct',
+                 'Nov',
+                 'Dec',
+                 'Jan', '', ''))
+
+ufo.ridge +  
+  theme(
+        axis.text = element_text(size = 11)
+  ) + theme(panel.grid.minor.x = element_blank(), 
+            axis.line.x = element_line(color = 'black'),
+            panel.background = element_blank(), 
+            plot.title = element_text(size = 18, face = "bold"),
+            plot.subtitle = element_text(size = 14), 
+            plot.caption = element_text(hjust = -.01, color = 'grey30', size = 10)
+  ) + labs ( x = '' , y = '', title = 'Missile launch, "fireball", or UFO?',
+             subtitle = "Reported UFO sightings by year (%), 1995-2017")
+
+ggsave('ufo_ridge.png', width = 10, height = 6)
+       
+       
+       
